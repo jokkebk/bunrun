@@ -2,10 +2,12 @@ import { defineConfig } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 
 const BUN_PORT = process.env.BUN_PORT ?? "3939";
+const VITE_PORT = Number(process.env.VITE_PORT ?? "5173");
 
 export default defineConfig({
   server: {
-    port: 5173,
+    port: VITE_PORT,
+    open: process.env.BUNRUN_NO_OPEN === "1" ? false : "/",
     proxy: {
       "/api": `http://127.0.0.1:${BUN_PORT}`,
       "/events": {

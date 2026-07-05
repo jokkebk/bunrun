@@ -3,7 +3,8 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from "node:http";
-import { existsSync, statSync } from "node:fs";
+import { existsSync, openSync, writeSync, closeSync } from "node:fs";
+import { spawn } from "node:child_process";
 import { resolve, extname, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -231,7 +232,18 @@ server.listen(PORT, HOST, async () => {
     }
   });
   refresh();
-  console.log(`bunrun on http://${HOST}:${PORT}`);
+  setTerminalTitle("🐰 bunrun");
+  const isDev = process.env.BUNRUN_DEV === "1";
+  const vitePort = process.env.VITE_PORT ?? "5173";
+  if (isDev) {
+    console.log(
+      `bunrun API on http://${HOST}:${PORT} — dashboard at http://localhost:${vitePort} (vite)`,
+    );
+  } else {
+    const dashboard = `http://${HOST}:${PORT}`;
+    console.log(`bunrun on ${dashboard}`);
+    if (process.env.BUNRUN_NO_OPEN !== "1") openDashboard(dashboard);
+  }
 });
 
 let shuttingDown = false;
@@ -241,10 +253,30 @@ async function shutdown(): Promise<void> {
   console.log("\nbunrun shutting down…");
   await stopAllRunners();
   server.close();
+  setTerminalTitle("");
   process.exit(0);
 }
 
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
+
+function setTerminalTitle(title: string): void {
+  const seq = `\x1b]0;${title}\x07`;
+  try {
+    const fd = openSync("/dev/tty", "w");
+    writeSync(fd, seq);
+    closeSync(fd);
+  } catch {
+    if (process.stdout.isTTY) process.stdout.write(seq);
+  }
+}
+
+function openDashboard(url: string): void {
+  try {
+    const cp = spawn("open", [url], { detached: true, stdio: "ignore" });
+    cp.on("error", () => {});
+    cp.unref();
+  } catch {}
+}
 
 export {};
