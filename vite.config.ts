@@ -1,8 +1,10 @@
 import { defineConfig } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 
-const BUN_PORT = process.env.BUN_PORT ?? "3939";
-const VITE_PORT = Number(process.env.VITE_PORT ?? "5173");
+const BUN_PORT = Number(process.env.BUN_PORT ?? "3939");
+const VITE_PORT = process.env.VITE_PORT
+  ? Number(process.env.VITE_PORT)
+  : BUN_PORT + 1;
 
 export default defineConfig({
   server: {

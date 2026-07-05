@@ -234,7 +234,7 @@ server.listen(PORT, HOST, async () => {
   refresh();
   setTerminalTitle("🐰 bunrun");
   const isDev = process.env.BUNRUN_DEV === "1";
-  const vitePort = process.env.VITE_PORT ?? "5173";
+  const vitePort = process.env.VITE_PORT ?? String(Number(PORT) + 1);
   if (isDev) {
     console.log(
       `bunrun API on http://${HOST}:${PORT} — dashboard at http://localhost:${vitePort} (vite)`,
