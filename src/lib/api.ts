@@ -1,5 +1,5 @@
 export async function call<T = unknown>(
-  action: "start" | "stop" | "restart" | "startAll",
+  action: "start" | "stop" | "restart" | "startAll" | "stopAll",
   projectId: string,
   procName?: string,
 ): Promise<T> {

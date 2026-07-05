@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn, execFileSync, type ChildProcess } from "node:child_process";
 import { resolve } from "node:path";
 import { EventEmitter } from "node:events";
 import {
@@ -17,6 +17,50 @@ import {
 } from "./config.js";
 
 const GRACE_MS = 4000;
+
+// macOS lacks a portable tree-kill primitive; walk the descendant tree via
+// `pgrep -P` so grandchildren that re-setsid (e.g. `bun run` wrappers) are
+// still reached even though they leave the spawning process group.
+function collectDescendants(rootPid: number): number[] {
+  const out: number[] = [];
+  const stack = [rootPid];
+  const seen = new Set<number>();
+  while (stack.length) {
+    const pid = stack.pop()!;
+    if (seen.has(pid)) continue;
+    seen.add(pid);
+    out.push(pid);
+    let children: number[] = [];
+    try {
+      const stdout = execFileSync("pgrep", ["-P", String(pid)], {
+        stdio: ["ignore", "pipe", "ignore"],
+      })
+        .toString()
+        .trim();
+      if (stdout) {
+        children = stdout
+          .split("\n")
+          .map((s) => Number(s))
+          .filter((n) => Number.isFinite(n) && n > 0);
+      }
+    } catch {
+      // pgrep returns non-zero when no children; ignore.
+    }
+    for (const c of children) stack.push(c);
+  }
+  // children first: kill deepest descendants before their parents
+  return out.reverse();
+}
+
+function killTree(rootPid: number, signal: NodeJS.Signals): void {
+  for (const pid of collectDescendants(rootPid)) {
+    try {
+      process.kill(pid, signal);
+    } catch {
+      // already gone or no permission — keep going
+    }
+  }
+}
 
 export type ProcessKey = string; // `${projectId}/${procName}`
 
@@ -211,6 +255,18 @@ export async function startAll(projectId: string): Promise<void> {
   }
 }
 
+export async function stopAll(projectId: string): Promise<void> {
+  const project = findProject(projectId);
+  if (!project) return;
+  for (const pr of project.processes) {
+    try {
+      await stop(projectId, pr.name);
+    } catch (e) {
+      console.error(`stop ${projectId}/${pr.name} failed`, e);
+    }
+  }
+}
+
 export async function stopAllRunners(): Promise<void> {
   const running = Array.from(managed.values()).filter(
     (m) => m.state.status === "running" || m.state.status === "stopping",
@@ -247,27 +303,32 @@ function makeManaged(projectId: string, pr: ProcessConfig): Managed {
 async function stopManaged(m: Managed): Promise<void> {
   if (!m.cp) return;
   const cp = m.cp;
+  const pid = m.state.pid ?? cp.pid;
   const pgid = m.state.pgid;
-  try {
-    if (pgid != null) process.kill(-pgid, "SIGTERM");
-    else cp.kill("SIGTERM");
-  } catch {
+  const term = () => {
+    if (pid != null) killTree(pid, "SIGTERM");
+    try {
+      if (pgid != null) process.kill(-pgid, "SIGTERM");
+    } catch {}
     try {
       cp.kill("SIGTERM");
     } catch {}
-  }
+  };
+  const force = () => {
+    if (pid != null) killTree(pid, "SIGKILL");
+    try {
+      if (pgid != null) process.kill(-pgid, "SIGKILL");
+    } catch {}
+    try {
+      cp.kill("SIGKILL");
+    } catch {}
+  };
+  term();
   await new Promise<void>((resolveStop) => {
     const done = () => resolveStop();
     cp.once("exit", done);
     m.killTimer = setTimeout(() => {
-      try {
-        if (pgid != null) process.kill(-pgid, "SIGKILL");
-        else cp.kill("SIGKILL");
-      } catch {
-        try {
-          cp.kill("SIGKILL");
-        } catch {}
-      }
+      force();
       resolveStop();
     }, GRACE_MS);
   });

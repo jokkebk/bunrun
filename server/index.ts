@@ -28,6 +28,7 @@ import {
   stop,
   restart,
   startAll,
+  stopAll,
   stopAllRunners,
   syncFromConfig,
   makeKey,
@@ -88,6 +89,7 @@ async function sendControl(
     else if (action === "stop") await stop(projectId, procName);
     else if (action === "restart") await restart(projectId, procName);
     else if (action === "startAll") await startAll(projectId);
+    else if (action === "stopAll") await stopAll(projectId);
     else return sendJSON(res, 400, { error: "unknown action" });
     sendJSON(res, 200, { ok: true });
   } catch (e) {

@@ -23,6 +23,7 @@
   let anyRunning = $derived(
     processes.some((ps) => ps.status === "running" || ps.status === "stopping"),
   );
+  let anyStopping = $derived(processes.some((ps) => ps.status === "stopping"));
   let anyCrashed = $derived(processes.some((ps) => ps.status === "crashed"));
 
   let dotClass = $derived(
@@ -46,6 +47,10 @@
   async function startAll(e: MouseEvent) {
     e.stopPropagation();
     await call("startAll", p.id);
+  }
+  async function stopAll(e: MouseEvent) {
+    e.stopPropagation();
+    await call("stopAll", p.id);
   }
   async function control(
     e: MouseEvent,
@@ -86,6 +91,22 @@
     <span class="dot-wrap"><span class={dotClass}></span></span>
     <span class="name">{p.name}</span>
     <span class="spacer"></span>
+    {#if processes.length > 0}
+      {#if anyRunning}
+        <button
+          class="mini danger"
+          title="Stop all"
+          onclick={stopAll}
+          disabled={anyStopping}
+        >■</button>
+      {:else}
+        <button
+          class="mini go"
+          title="Start all"
+          onclick={startAll}
+        >▶</button>
+      {/if}
+    {/if}
     <button class="mini" title="Edit" onclick={(e) => { e.stopPropagation(); onEdit(p); }}>✎</button>
   </div>
   <div class="path" title={p.path}>{shortPath(p.path)}</div>
@@ -125,8 +146,5 @@
         {/if}
       </div>
     {/each}
-    <button class="startall" onclick={startAll} disabled={anyRunning}>
-      Start all
-    </button>
   </div>
 </div>

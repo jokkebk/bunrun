@@ -232,14 +232,6 @@ input:focus {
 .proc-url:hover {
   color: var(--accent-hover);
 }
-.startall {
-  margin-top: 4px;
-  background: transparent;
-  border: 1px dashed var(--border);
-  font-size: 11px;
-  padding: 4px;
-}
-
 /* mini buttons */
 .mini {
   width: 22px;
