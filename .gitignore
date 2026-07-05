@@ -1,0 +1,13 @@
+# bunrun local data — config, secrets, logs (never committed)
+/data/
+
+# dependencies
+node_modules/
+
+# build output
+/dist/
+/build/
+
+# editor / OS
+.DS_Store
+*.log
