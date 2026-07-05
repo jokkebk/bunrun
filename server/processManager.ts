@@ -41,6 +41,8 @@ type Managed = {
   scrapeUntil: number | null; // ms timestamp ceiling for url scraping
   scrapeTimer: NodeJS.Timeout | null;
   killTimer: NodeJS.Timeout | null;
+  stdoutRemainder: string;
+  stderrRemainder: string;
 };
 
 const managed = new Map<ProcessKey, Managed>();
@@ -127,6 +129,8 @@ export async function start(
   m.state.exitCode = null;
   m.state.url = null;
   m.state.opened = false;
+  m.stdoutRemainder = "";
+  m.stderrRemainder = "";
   m.state.pgid = typeof cp.pid === "number" ? cp.pid : null;
   m.state.pid = cp.pid ?? null;
   m.scrapeUntil = Date.now() + 10_000;
@@ -235,6 +239,8 @@ function makeManaged(projectId: string, pr: ProcessConfig): Managed {
     scrapeUntil: null,
     scrapeTimer: null,
     killTimer: null,
+    stdoutRemainder: "",
+    stderrRemainder: "",
   };
 }
 
@@ -272,9 +278,19 @@ function handleOutput(
   stream: "stdout" | "stderr",
   text: string,
 ): void {
-  const lines = text.split("\n");
-  if (lines.length && lines[lines.length - 1] === "") lines.pop();
-  for (const line of lines) {
+  const remainder = stream === "stdout" ? "stdoutRemainder" : "stderrRemainder";
+  const combined = m[remainder] + text;
+  m[remainder] = "";
+  let idx = 0;
+  while (idx < combined.length) {
+    const nl = combined.indexOf("\n", idx);
+    if (nl === -1) {
+      m[remainder] = combined.slice(idx);
+      break;
+    }
+    let line = combined.slice(idx, nl);
+    idx = nl + 1;
+    if (line.endsWith("\r")) line = line.slice(0, -1);
     const ll: LogLine = { ts: Date.now(), stream, line };
     if (m.scrapeUntil && !m.state.url) {
       const url = scrapeUrl(m.state.config, line);
