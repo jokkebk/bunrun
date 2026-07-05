@@ -45,15 +45,35 @@ function esc(s: string): string {
   return out;
 }
 
+const URL_RE = /https?:\/\/[^\s<>"'`)}\]]+/i;
+
+function linkify(escaped: string): string {
+  let out = "";
+  let rest = escaped;
+  while (rest.length) {
+    const m = rest.match(URL_RE);
+    if (!m || m.index === undefined) {
+      out += rest;
+      break;
+    }
+    out += rest.slice(0, m.index);
+    const href = m[0];
+    out += `<a href="${href}" target="_blank" rel="noreferrer" class="log-url">${href}</a>`;
+    rest = rest.slice(m.index + href.length);
+  }
+  return out;
+}
+
 export function renderAnsi(text: string): string {
   const parts: string[] = [];
   let styles = new Set<string>();
   let buf = "";
   const flush = () => {
+    const rendered = linkify(esc(buf));
     parts.push(
       styles.size > 0
-        ? `<span class="${Array.from(styles).join(" ")}">${buf}</span>`
-        : buf,
+        ? `<span class="${Array.from(styles).join(" ")}">${rendered}</span>`
+        : rendered,
     );
     buf = "";
   };

@@ -39,6 +39,7 @@ type Managed = {
   pgid: number | null;
   buf: RingBuffer;
   scrapeUntil: number | null; // ms timestamp ceiling for url scraping
+  scrapeTimer: NodeJS.Timeout | null;
   killTimer: NodeJS.Timeout | null;
 };
 
@@ -128,7 +129,23 @@ export async function start(
   m.state.opened = false;
   m.state.pgid = typeof cp.pid === "number" ? cp.pid : null;
   m.state.pid = cp.pid ?? null;
-  m.scrapeUntil = pr.openOnStart ? Date.now() + 10_000 : null;
+  m.scrapeUntil = Date.now() + 10_000;
+  if (m.scrapeTimer) clearTimeout(m.scrapeTimer);
+  m.scrapeTimer = setTimeout(() => {
+    m.scrapeUntil = null;
+  }, 10_000);
+  // Declared explicit url: known immediately, no need to wait for stdout.
+  const declared = pr.url?.trim() || null;
+  if (declared) {
+    m.state.url = declared;
+    if (pr.openOnStart && !m.state.opened) {
+      m.state.opened = true;
+      openUrl(declared).then(
+        () => console.log(`[auto-open] ${m.state.key} -> ${declared}`),
+        () => {},
+      );
+    }
+  }
   emitState();
 
   cp.stdout?.on("data", (b: Buffer) =>
@@ -141,6 +158,10 @@ export async function start(
     if (m!.killTimer) {
       clearTimeout(m!.killTimer);
       m!.killTimer = null;
+    }
+    if (m!.scrapeTimer) {
+      clearTimeout(m!.scrapeTimer);
+      m!.scrapeTimer = null;
     }
     const crashed = m!.state.status === "running";
     m!.state.status = code === 0 || !crashed ? "stopped" : "crashed";
@@ -212,6 +233,7 @@ function makeManaged(projectId: string, pr: ProcessConfig): Managed {
     pgid: null,
     buf: createRingBuffer(),
     scrapeUntil: null,
+    scrapeTimer: null,
     killTimer: null,
   };
 }
@@ -261,9 +283,10 @@ function handleOutput(
         emitState();
         if (m.state.config.openOnStart && !m.state.opened) {
           m.state.opened = true;
-          openUrl(url).catch(() => {});
-        } else if (Date.now() > m.scrapeUntil) {
-          m.scrapeUntil = null;
+          openUrl(url).then(
+            () => console.log(`[auto-open] ${m.state.key} -> ${url}`),
+            () => {},
+          );
         }
       }
     }

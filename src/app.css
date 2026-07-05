@@ -453,6 +453,14 @@ input:focus {
   white-space: pre-wrap;
   word-break: break-all;
 }
+.log-url {
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.log-url:hover {
+  color: var(--accent-hover);
+}
 
 /* ANSI colors */
 .ansi-fg-red {
