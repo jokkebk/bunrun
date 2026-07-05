@@ -80,41 +80,58 @@
   onclick={() => onSelect(p.id)}
   onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(p.id); } }}
 >
-  <div class="card-row">
+  <div class="head">
+    {#if p.favicon}
+      <img
+        class="favicon"
+        src={`/fav/${encodeURIComponent(p.id)}`}
+        alt=""
+        onerror={(e) => {
+          (e.currentTarget as HTMLImageElement).style.display = "none";
+          const sib = (e.currentTarget as HTMLImageElement)
+            .nextElementSibling as HTMLElement | null;
+          if (sib) sib.style.display = "inline-flex";
+        }}
+      />
+    {/if}
     <span
       class="chip"
-      style={`background:${colorFor(p.name)}`}
+      style={`background:${colorFor(p.name)}${p.favicon ? ";display:none" : ""}`}
       aria-hidden="true"
     >
       {initials(p.name)}
     </span>
-    <span class="dot-wrap"><span class={dotClass}></span></span>
-    <span class="name">{p.name}</span>
-    <span class="spacer"></span>
-    {#if processes.length > 0}
-      {#if anyRunning}
-        <button
-          class="mini danger"
-          title="Stop all"
-          onclick={stopAll}
-          disabled={anyStopping}
-        >■</button>
-      {:else}
-        <button
-          class="mini go"
-          title="Start all"
-          onclick={startAll}
-        >▶</button>
-      {/if}
-    {/if}
-    <button class="mini" title="Edit" onclick={(e) => { e.stopPropagation(); onEdit(p); }}>✎</button>
+    <div class="head-text">
+      <div class="card-row">
+        <span class="dot-wrap"><span class={dotClass}></span></span>
+        <span class="name">{p.name}</span>
+        {#if processes.length > 0}
+          {#if anyRunning}
+            <button
+              class="mini danger"
+              title="Stop all"
+              onclick={stopAll}
+              disabled={anyStopping}
+            >■</button>
+          {:else}
+            <button
+              class="mini go"
+              title="Start all"
+              onclick={startAll}
+            >▶</button>
+          {/if}
+        {/if}
+        <span class="spacer"></span>
+        <button class="mini" title="Edit" onclick={(e) => { e.stopPropagation(); onEdit(p); }}>✎</button>
+      </div>
+      <div class="path" title={p.path}>{shortPath(p.path)}</div>
+    </div>
   </div>
-  <div class="path" title={p.path}>{shortPath(p.path)}</div>
   <div class="procs">
     {#each processes as ps (ps.key)}
       <div class="proc">
-        <span class="proc-name">{ps.procName}</span>
         <span class="proc-dot {ps.status}"></span>
+        <span class="proc-name">{ps.procName}</span>
         {#if ps.url}
           <a
             class="proc-url"

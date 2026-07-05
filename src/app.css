@@ -137,6 +137,15 @@ input:focus {
   border-color: var(--accent);
   background: #1d2130;
 }
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.head-text {
+  flex: 1;
+  min-width: 0;
+}
 .card-row {
   display: flex;
   align-items: center;
@@ -146,13 +155,20 @@ input:focus {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 4px;
-  font-size: 11px;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  font-size: 18px;
   font-weight: 600;
   color: white;
   flex-shrink: 0;
+}
+.favicon {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  object-fit: contain;
 }
 .dot-wrap {
   display: inline-flex;
@@ -187,7 +203,7 @@ input:focus {
   font-family: var(--mono);
   font-size: 11px;
   color: var(--text-dim);
-  margin-top: 4px;
+  margin-top: 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
