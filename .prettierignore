@@ -1,0 +1,5 @@
+PLAN.md
+data/
+dist/
+node_modules/
+bun.lock
