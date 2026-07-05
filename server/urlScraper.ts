@@ -1,6 +1,12 @@
 import { spawn } from "node:child_process";
 import type { ProcessConfig } from "./config.js";
 
+const ANSI_RE = /\x1b\[[0-9;]*[A-Za-z]/g;
+
+function stripAnsi(s: string): string {
+  return s.replace(ANSI_RE, "");
+}
+
 const VITE_PORT =
   /(?:Local:|ready in|Network:).*?(?:https?:\/\/)?localhost:(\d+)/i;
 const NEXT_PORT =
@@ -12,6 +18,7 @@ const VITE_URL = /https?:\/\/(localhost|[\d.]+|\[[a-f0-9:]+\]):(\d+)/i;
 export function scrapeUrl(config: ProcessConfig, text: string): string | null {
   const declared = config.url?.trim();
   if (declared) return declared;
+  text = stripAnsi(text);
   const pattern = config.urlPattern ? new RegExp(config.urlPattern, "i") : null;
   let port: number | null = null;
   if (pattern) {
