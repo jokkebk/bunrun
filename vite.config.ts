@@ -12,6 +12,7 @@ export default defineConfig({
     open: process.env.BUNRUN_NO_OPEN === "1" ? false : "/",
     proxy: {
       "/api": `http://127.0.0.1:${BUN_PORT}`,
+      "/fav": `http://127.0.0.1:${BUN_PORT}`,
       "/events": {
         target: `http://127.0.0.1:${BUN_PORT}`,
         changeOrigin: false,
