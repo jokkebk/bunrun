@@ -47,3 +47,34 @@ export type LogLine = {
   line: string;
   url?: string;
 };
+
+export type VaultEntry = {
+  id: string;
+  label: string;
+  value: string;
+  owner: string | null;
+  provider: string | null;
+  defaultVarName: string | null;
+};
+
+export type VaultInput = Omit<VaultEntry, "id">;
+
+export type EnvLine =
+  | { kind: "blank"; raw: string }
+  | { kind: "doc-comment"; raw: string }
+  | { kind: "other"; raw: string }
+  | {
+      kind: "kv";
+      key: string;
+      value: string;
+      rawValue: string | null;
+      disabled: boolean;
+      exportPrefix: boolean;
+      inlineComment: string | null;
+      prefix: string;
+    };
+
+export type EnvResponse = {
+  lines: EnvLine[];
+  vault: VaultEntry[];
+};

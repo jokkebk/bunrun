@@ -300,6 +300,16 @@ input:focus {
 .main-head .path {
   margin-top: 0;
   font-size: 11px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.env-btn {
+  align-self: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 2px 8px;
 }
 .rows {
   flex: 1;

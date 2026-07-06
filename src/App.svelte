@@ -7,12 +7,14 @@
   import Sidebar from "./lib/components/Sidebar.svelte";
   import MainPane from "./lib/components/MainPane.svelte";
   import AddEditModal from "./lib/components/AddEditModal.svelte";
+  import EnvEditorModal from "./lib/components/EnvEditorModal.svelte";
 
   let appState = $state<FullState | null>(null);
   let selected = $state<string | null>(null);
   let search = $state("");
   let modalOpen = $state(false);
   let editTarget = $state<ProjectConfig | null>(null);
+  let envModalProject = $state<ProjectConfig | null>(null);
 
   onMount(() => {
     connect();
@@ -59,6 +61,12 @@
     modalOpen = false;
     editTarget = null;
   }
+  function onEnv(p: ProjectConfig) {
+    envModalProject = p;
+  }
+  function closeEnvModal() {
+    envModalProject = null;
+  }
 </script>
 
 <div class="app">
@@ -71,8 +79,11 @@
     {onEdit}
     {onAdd}
   />
-  <MainPane project={selectedProject} processes={selectedProcesses} />
+  <MainPane project={selectedProject} processes={selectedProcesses} onEnv={onEnv} />
 </div>
 {#if modalOpen}
   <AddEditModal project={editTarget} onClose={closeModal} />
+{/if}
+{#if envModalProject}
+  <EnvEditorModal project={envModalProject} onClose={closeEnvModal} />
 {/if}
