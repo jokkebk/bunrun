@@ -20,6 +20,13 @@ import {
   type ProjectConfig,
 } from "./config.js";
 import {
+  getVault,
+  startVaultWatch,
+  type VaultEntry,
+  type VaultInput,
+} from "./vault.js";
+import { parseEnv, serializeEnv, type EnvLine } from "./envFile.js";
+import {
   getState,
   getSnapshot,
   onStateChange,
@@ -107,6 +114,23 @@ function sendText(res: ServerResponse, status: number, text: string): void {
   res.end(text);
 }
 
+async function serveFavicon(
+  projectId: string,
+  res: ServerResponse,
+): Promise<void> {
+  const project = findProject(projectId);
+  if (!project || !project.favicon) return sendText(res, 404, "not found");
+  const base = resolve(project.path);
+  const filePath = resolve(base, project.favicon);
+  if (!filePath.startsWith(base + "/") && filePath !== base) {
+    return sendText(res, 403, "forbidden");
+  }
+  if (!existsSync(filePath)) return sendText(res, 404, "not found");
+  res.writeHead(200, { "Content-Type": mimeType(extname(filePath)) });
+  const file = Bun.file(filePath);
+  res.end(Buffer.from(await file.arrayBuffer()));
+}
+
 async function serveStatic(
   req: IncomingMessage,
   res: ServerResponse,
@@ -138,6 +162,45 @@ async function serveStatic(
   return true;
 }
 
+async function writeEnv(projectId: string, lines: EnvLine[]): Promise<void> {
+  const project = findProject(projectId);
+  if (!project) throw new Error("no project");
+  const filePath = envFilePath(project);
+  if (!filePath) throw new Error("no envFile configured");
+  const out = serializeEnv(lines);
+  await Bun.write(filePath, out);
+}
+
+async function promoteEnvKey(
+  projectId: string,
+  res: ServerResponse,
+  body: any,
+): Promise<void> {
+  const key = String(body?.key ?? "");
+  if (!key) return sendJSON(res, 400, { error: "key required" });
+  const project = findProject(projectId);
+  if (!project) return sendJSON(res, 404, { error: "no project" });
+  const filePath = envFilePath(project);
+  if (!filePath || !existsSync(filePath))
+    return sendJSON(res, 404, { error: "no envFile" });
+  const text = await Bun.file(filePath).text();
+  const lines = parseEnv(text);
+  const line = lines.find(
+    (l) => l.kind === "kv" && l.key === key && !l.disabled,
+  ) as Extract<EnvLine, { kind: "kv" }> | undefined;
+  if (!line) return sendJSON(res, 404, { error: "key not found" });
+  const entry = getVault().add(
+    toVaultInput({
+      label: body?.label ?? key,
+      value: line.value,
+      owner: body?.owner ?? null,
+      provider: body?.provider ?? null,
+      defaultVarName: body?.defaultVarName ?? key,
+    }),
+  );
+  return sendJSON(res, 200, entry);
+}
+
 function mimeType(ext: string): string {
   switch (ext) {
     case ".html":
@@ -165,7 +228,63 @@ function mimeType(ext: string): string {
   }
 }
 
-let apiLogBuffer: string[] = [];
+function readBody<T = any>(
+  req: IncomingMessage,
+  res: ServerResponse,
+  cb: (body: T) => void | Promise<void>,
+): void {
+  let buf = "";
+  req.on("data", (c) => (buf += c));
+  req.on("end", () => {
+    let body: any;
+    try {
+      body = buf === "" ? {} : JSON.parse(buf);
+    } catch {
+      sendJSON(res, 400, { error: "invalid JSON" });
+      return;
+    }
+    Promise.resolve(cb(body as T)).catch((e) =>
+      sendJSON(res, 500, { error: String(e) }),
+    );
+  });
+}
+
+function toVaultInput(body: any): VaultInput {
+  return {
+    label: String(body?.label ?? ""),
+    value: String(body?.value ?? ""),
+    owner: body?.owner ?? null,
+    provider: body?.provider ?? null,
+    defaultVarName: body?.defaultVarName ?? null,
+  };
+}
+
+function envFilePath(project: ProjectConfig): string | null {
+  if (!project.envFile) return null;
+  const base = resolve(project.path);
+  const filePath = resolve(base, project.envFile);
+  if (!filePath.startsWith(base + "/") && filePath !== base) return null;
+  return filePath;
+}
+
+async function serveEnvGet(
+  projectId: string,
+  res: ServerResponse,
+): Promise<void> {
+  const project = findProject(projectId);
+  if (!project) return sendJSON(res, 404, { error: "no project" });
+  const filePath = envFilePath(project);
+  if (!filePath) return sendJSON(res, 404, { error: "no envFile configured" });
+  if (!existsSync(filePath))
+    return sendJSON(res, 404, { error: "env file missing" });
+  try {
+    const text = await Bun.file(filePath).text();
+    const lines = parseEnv(text);
+    return sendJSON(res, 200, { lines, vault: getVault().list() });
+  } catch (e) {
+    return sendJSON(res, 500, { error: String(e) });
+  }
+}
 
 const handler = async (req: IncomingMessage, res: ServerResponse) => {
   const url = req.url ?? "/";
@@ -197,21 +316,80 @@ const handler = async (req: IncomingMessage, res: ServerResponse) => {
     return;
   }
 
+  if (url === "/api/vault" && req.method === "GET")
+    return sendJSON(res, 200, getVault().list());
+
+  if (url === "/api/vault" && req.method === "POST") {
+    return readBody(req, res, async (body) => {
+      try {
+        const entry = getVault().add(toVaultInput(body));
+        return sendJSON(res, 200, entry);
+      } catch (e) {
+        return sendJSON(res, 400, { error: String(e) });
+      }
+    });
+  }
+
+  if (
+    url.startsWith("/api/vault/") &&
+    (req.method === "PATCH" || req.method === "DELETE")
+  ) {
+    const id = decodeURIComponent(url.slice("/api/vault/".length));
+    if (req.method === "DELETE") {
+      const ok = getVault().remove(id);
+      return sendJSON(res, ok ? 200 : 404, { ok });
+    }
+    return readBody(req, res, (body) => {
+      const updated = getVault().update(id, toVaultInput(body));
+      return sendJSON(
+        res,
+        updated ? 200 : 404,
+        updated ?? { error: "not found" },
+      );
+    });
+  }
+
   if (url === "/api/projects" && req.method === "GET")
     return sendJSON(res, 200, getProjects());
 
+  if (url.startsWith("/fav/") && req.method === "GET") {
+    const projectId = decodeURIComponent(url.slice("/fav/".length));
+    return serveFavicon(projectId, res);
+  }
+
   if (url === "/api/projects" && req.method === "PUT") {
-    let bodyBuf = "";
-    req.on("data", (c) => (bodyBuf += c));
-    req.on("end", () => {
+    return readBody(req, res, (body) => {
       try {
-        const projects = JSON.parse(bodyBuf) as ProjectsFile;
-        saveProjects(projects).then(() => sendJSON(res, 200, { ok: true }));
+        const projects = body as ProjectsFile;
+        return saveProjects(projects).then(() =>
+          sendJSON(res, 200, { ok: true }),
+        );
       } catch (e) {
-        sendJSON(res, 400, { error: String(e) });
+        return sendJSON(res, 400, { error: String(e) });
       }
     });
-    return;
+  }
+
+  const envMatch = url.match(/^\/api\/projects\/([^/]+)\/env$/);
+  if (envMatch) {
+    const projectId = decodeURIComponent(envMatch[1]);
+    if (req.method === "GET") return serveEnvGet(projectId, res);
+    if (req.method === "PUT") {
+      return readBody<EnvLine[]>(req, res, async (lines) => {
+        try {
+          await writeEnv(projectId, lines);
+          return sendJSON(res, 200, { ok: true });
+        } catch (e) {
+          return sendJSON(res, 400, { error: String(e) });
+        }
+      });
+    }
+  }
+
+  const promoteMatch = url.match(/^\/api\/projects\/([^/]+)\/env\/promote$/);
+  if (promoteMatch && req.method === "POST") {
+    const projectId = decodeURIComponent(promoteMatch[1]);
+    return readBody(req, res, (body) => promoteEnvKey(projectId, res, body));
   }
 
   if (req.method === "GET" && (await serveStatic(req, res))) return;
@@ -221,6 +399,7 @@ const handler = async (req: IncomingMessage, res: ServerResponse) => {
 const server = createServer(handler);
 server.listen(PORT, HOST, async () => {
   startFileWatch();
+  startVaultWatch();
   syncFromConfig();
   onChange(() => {
     syncFromConfig();
