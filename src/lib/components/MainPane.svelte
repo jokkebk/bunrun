@@ -5,11 +5,9 @@
   let {
     project,
     processes,
-    onEnv,
   }: {
     project: ProjectConfig | null;
     processes: ProcessState[];
-    onEnv: (p: ProjectConfig) => void;
   } = $props();
 
   let focusedKey = $state<string | null>(null);
@@ -26,14 +24,6 @@
     <h2 class="title">{project?.name ?? "No project selected"}</h2>
     {#if project}
       <span class="path" title={project.path}>{project.path}</span>
-      <button
-        class="btn env-btn"
-        onclick={() => onEnv(project)}
-        disabled={!project.envFile}
-        title={project.envFile ? `Edit ${project.envFile}` : "No envFile configured"}
-      >
-        .env
-      </button>
     {/if}
   </div>
   <div class="rows">

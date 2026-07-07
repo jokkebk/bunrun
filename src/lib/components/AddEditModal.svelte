@@ -4,9 +4,11 @@
 
   let {
     project,
+    onEnv,
     onClose,
   }: {
     project: ProjectConfig | null;
+    onEnv: (p: ProjectConfig) => void;
     onClose: () => void;
   } = $props();
 
@@ -95,10 +97,16 @@
       <button class="mini" onclick={onClose}>✕</button>
     </div>
     <div class="modal-body">
-      <label class="fld">
-        <span>Name</span>
-        <input bind:value={draft.name} placeholder="My App" />
-      </label>
+      <div class="fld-row">
+        <label class="fld">
+          <span>Name</span>
+          <input bind:value={draft.name} placeholder="My App" />
+        </label>
+        <label class="fld check">
+          <input type="checkbox" bind:checked={draft.ui.pinned} />
+          <span>Pinned</span>
+        </label>
+      </div>
       <label class="fld wide">
         <span>Path (absolute)</span>
         <input bind:value={draft.path} placeholder="/Users/…/myapp" />
@@ -108,10 +116,16 @@
           <span>envFile</span>
           <input bind:value={draft.envFile} placeholder=".env" />
         </label>
-        <label class="fld check">
-          <input type="checkbox" bind:checked={draft.ui.pinned} />
-          <span>Pinned</span>
-        </label>
+        {#if project}
+          <button
+            class="btn env-btn"
+            onclick={() => onEnv(draft)}
+            disabled={!draft.envFile}
+            title={draft.envFile ? `Edit ${draft.envFile}` : "No envFile configured"}
+          >
+            Open editor
+          </button>
+        {/if}
       </div>
 
       <h4>Processes</h4>

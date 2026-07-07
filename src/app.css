@@ -105,6 +105,13 @@ input:focus {
   font-size: 18px;
   line-height: 1;
 }
+.power-btn {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.power-btn:hover {
+  background: rgba(232, 85, 78, 0.12);
+}
 .cards {
   overflow-y: auto;
   flex: 1;

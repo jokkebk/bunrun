@@ -79,10 +79,10 @@
     {onEdit}
     {onAdd}
   />
-  <MainPane project={selectedProject} processes={selectedProcesses} onEnv={onEnv} />
+  <MainPane project={selectedProject} processes={selectedProcesses} />
 </div>
 {#if modalOpen}
-  <AddEditModal project={editTarget} onClose={closeModal} />
+  <AddEditModal project={editTarget} onEnv={onEnv} onClose={closeModal} />
 {/if}
 {#if envModalProject}
   <EnvEditorModal project={envModalProject} onClose={closeEnvModal} />
