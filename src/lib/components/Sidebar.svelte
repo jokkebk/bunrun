@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { FullState, ProjectConfig } from "../types";
+  import { shutdown } from "../api";
   import ProjectCard from "./ProjectCard.svelte";
 
   let {
@@ -19,12 +20,22 @@
     onEdit: (p: ProjectConfig) => void;
     onAdd: () => void;
   } = $props();
+
+  async function onShutdown() {
+    if (!confirm("Shut down bunrun? This will stop all running projects.")) return;
+    try {
+      await shutdown();
+    } catch (e) {
+      alert(`Shutdown failed: ${e}`);
+    }
+  }
 </script>
 
 <aside class="sidebar">
   <div class="sidebar-head">
     <input class="search" type="text" placeholder="Search name or path…" bind:value={search} />
     <button class="add-btn" title="Add project" onclick={onAdd}>+</button>
+    <button class="add-btn power-btn" title="Shut down bunrun" onclick={onShutdown}>⏻</button>
   </div>
   <div class="cards">
     {#each filteredProjects as p (p.id)}

@@ -316,6 +316,12 @@ const handler = async (req: IncomingMessage, res: ServerResponse) => {
     return;
   }
 
+  if (url === "/api/shutdown" && req.method === "POST") {
+    sendJSON(res, 200, { ok: true });
+    shutdown();
+    return;
+  }
+
   if (url === "/api/vault" && req.method === "GET")
     return sendJSON(res, 200, getVault().list());
 

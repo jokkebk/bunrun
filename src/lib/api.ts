@@ -28,3 +28,7 @@ export async function fetchLogs(
   );
   return await res.json();
 }
+
+export async function shutdown(): Promise<void> {
+  await fetch("/api/shutdown", { method: "POST" });
+}
