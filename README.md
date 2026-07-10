@@ -6,6 +6,12 @@ localhost workflow.
 
 ![bunrun dashboard](docs/bunrun-dashboard.png)
 
+## Trust model
+
+bunrun binds to localhost and has no authentication. It runs shell commands
+from `data/projects.yaml` as your user with no sandboxing, so only point it at
+projects and commands you already trust.
+
 ## What it does
 
 - Keeps your dev projects in one sidebar with favicons, paths, and status dots.
@@ -81,7 +87,6 @@ commands such as `bun run dev`, `npm run dev`, environment prefixes, pipes, and
 - `bun run typecheck` runs TypeScript and Svelte checks.
 - `bun run lint` checks formatting with Prettier.
 
-## Trust model
+## License
 
-bunrun binds to localhost and has no authentication. It is meant for trusted
-local use by the same user who owns the configured projects.
+MIT &mdash; see [LICENSE](LICENSE).
