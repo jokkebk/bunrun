@@ -5,7 +5,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "dev": "BUNRUN_DEV=1 concurrently -n server,vite -c blue,green \"bun run server\" \"vite\"",
+    "dev": "BUNRUN_DEV=1 concurrently -n server,vite -c blue,green --kill-others \"bun run server\" \"vite\"",
     "dev:server": "bun run server",
     "dev:ui": "vite",
     "build": "vite build",
