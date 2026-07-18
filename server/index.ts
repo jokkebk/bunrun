@@ -14,6 +14,7 @@ import {
   getProjects,
   findProject,
   saveProjects,
+  reconcileAndSaveProjects,
   startFileWatch,
   onChange,
   type ProjectsFile,
@@ -366,8 +367,8 @@ const handler = async (req: IncomingMessage, res: ServerResponse) => {
   if (url === "/api/projects" && req.method === "PUT") {
     return readBody(req, res, (body) => {
       try {
-        const projects = body as ProjectsFile;
-        return saveProjects(projects).then(() =>
+        const incoming = body as ProjectsFile;
+        return reconcileAndSaveProjects(incoming).then(() =>
           sendJSON(res, 200, { ok: true }),
         );
       } catch (e) {

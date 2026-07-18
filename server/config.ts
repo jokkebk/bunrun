@@ -77,6 +77,28 @@ export async function saveProjects(projects: ProjectsFile): Promise<void> {
   for (const l of listeners) l();
 }
 
+// Merge a client-sent full list with what's on disk without dropping entries
+// added concurrently by external writers (e.g. the bunrun admin skill writes
+// the file atomically with tmp+rename, which macOS fs.watch routinely misses).
+// The dashboard's GET /api/projects returns the in-memory cache, so the client
+// is unaware of anything added between the watcher's last reload and the PUT.
+// We preserve any on-disk id that neither the client nor the prior cache knew
+// about; ids that were in the prior cache but missing from the client list are
+// treated as intentional deletes.
+export async function reconcileAndSaveProjects(
+  incoming: ProjectsFile,
+): Promise<ProjectsFile> {
+  const cacheIds = new Set(cache.map((p) => p.id));
+  await loadProjects();
+  const incomingIds = new Set(incoming.map((p) => p.id));
+  const preserved = cache.filter(
+    (p) => !incomingIds.has(p.id) && !cacheIds.has(p.id),
+  );
+  const next = [...incoming, ...preserved];
+  await saveProjects(next);
+  return next;
+}
+
 export function onChange(cb: () => void): () => void {
   listeners.add(cb);
   return () => listeners.delete(cb);
